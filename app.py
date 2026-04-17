@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from datetime import timedelta
 import os
 
 # ============================================================
@@ -18,7 +19,7 @@ st.markdown("""
     [data-testid="stAppViewContainer"] { background: #0d0d1a; }
     [data-testid="stSidebar"] { background: #11112a; border-right: 1px solid #2a2a4a; }
     h1, h2, h3, h4, h5 { color: #e0e0f0 !important; }
-    p, label, .stMarkdown, div[data-testid="stText"] { color: #a0a0c0 !important; }
+    p, label, .stMarkdown { color: #a0a0c0 !important; }
     .section-header {
         font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
         text-transform: uppercase; color: #6b7db3 !important;
@@ -31,6 +32,11 @@ st.markdown("""
     .metric-label { font-size: 12px; color: #6b7db3; margin-bottom: 4px; }
     .metric-value { font-size: 26px; font-weight: 600; color: #e0e0f0; }
     .metric-sub { font-size: 11px; color: #6b7db3; margin-top: 2px; }
+    .filter-note {
+        background: #1a1a35; border: 0.5px solid #3a3a6a;
+        border-radius: 8px; padding: 8px 12px;
+        font-size: 11px; color: #7b7baa; margin-bottom: 8px;
+    }
     div[data-testid="metric-container"] {
         background: #161628; border: 0.5px solid #2a2a4a;
         border-radius: 12px; padding: 12px 16px;
@@ -42,42 +48,41 @@ st.markdown("""
 
 # ============================================================
 #  BUSINESS & FILE CONFIG
-#  When you get CSV files for other businesses, uncomment
-#  their sections below and fill in the exact filenames.
+#  All filenames must match exactly what you upload to GitHub
 # ============================================================
 BUSINESSES = {
     "NOLA Boards": {
         "color": "#7c3aed",
-        "foot_traffic":    "pilot-nola-footTraffic-2026-04-12.csv",
-        "repeat_visits":   "pilot-nola-repeatVisits-2026-04-12.csv",
-        "dwell_time":      "pilot-nola-dwellTime-2026-04-12.csv",
+        "foot_traffic":    "pilot-nola-footTraffic-2026-04-17.csv",
+        "repeat_visits":   "pilot-nola-repeatVisits-2026-04-17.csv",
+        "dwell_time":      "pilot-nola-dwellTime-2026-04-17.csv",
         "redemption_rate": "pilot-nola-redemptionRate-2026-04-12.csv",
         "social_pulse":    "social-pulse-nola-boards.csv",
     },
-    # "Lower Coast Coffee": {
-    #     "color": "#1d9e75",
-    #     "foot_traffic":    "pilot-lcc-footTraffic-2026-04-12.csv",
-    #     "repeat_visits":   "pilot-lcc-repeatVisits-2026-04-12.csv",
-    #     "dwell_time":      "pilot-lcc-dwellTime-2026-04-12.csv",
-    #     "redemption_rate": "pilot-lcc-redemptionRate-2026-04-12.csv",
-    #     "social_pulse":    "social-pulse-lower-coast-coffee.csv",
-    # },
-    # "AZ Chimney Cakes": {
-    #     "color": "#e07b39",
-    #     "foot_traffic":    "pilot-azcc-footTraffic-2026-04-12.csv",
-    #     "repeat_visits":   "pilot-azcc-repeatVisits-2026-04-12.csv",
-    #     "dwell_time":      "pilot-azcc-dwellTime-2026-04-12.csv",
-    #     "redemption_rate": "pilot-azcc-redemptionRate-2026-04-12.csv",
-    #     "social_pulse":    "social-pulse-az-chimney-cakes.csv",
-    # },
-    # "City of El Mirage": {
-    #     "color": "#3b82f6",
-    #     "foot_traffic":    "pilot-elmirage-footTraffic-2026-04-12.csv",
-    #     "repeat_visits":   "pilot-elmirage-repeatVisits-2026-04-12.csv",
-    #     "dwell_time":      "pilot-elmirage-dwellTime-2026-04-12.csv",
-    #     "redemption_rate": "pilot-elmirage-redemptionRate-2026-04-12.csv",
-    #     "social_pulse":    "social-pulse-el-mirage.csv",
-    # },
+    "Lower Coast Coffee": {
+        "color": "#1d9e75",
+        "foot_traffic":    "pilot-lcc-footTraffic-2026-04-17.csv",
+        "repeat_visits":   "pilot-lcc-repeatVisits-2026-04-17.csv",
+        "dwell_time":      "pilot-lcc-dwellTime-2026-04-17.csv",
+        "redemption_rate": "pilot-lcc-redemptionRate-2026-04-17.csv",
+        "social_pulse":    "social-pulse-lower-coast-coffee.csv",
+    },
+    "AZ Chimney Cakes": {
+        "color": "#e07b39",
+        "foot_traffic":    "pilot-azcc-footTraffic-2026-04-17.csv",
+        "repeat_visits":   "pilot-azcc-repeatVisits-2026-04-17.csv",
+        "dwell_time":      "pilot-azcc-dwellTime-2026-04-17.csv",
+        "redemption_rate": "pilot-azcc-redemptionRate-2026-04-17.csv",
+        "social_pulse":    "social-pulse-az-chimney-cakes.csv",
+    },
+    "City of El Mirage": {
+        "color": "#3b82f6",
+        "foot_traffic":    "pilot-elmirage-footTraffic-2026-04-17.csv",
+        "repeat_visits":   "pilot-elmirage-repeatVisits-2026-04-17.csv",
+        "dwell_time":      "pilot-elmirage-dwellTime-2026-04-17.csv",
+        "redemption_rate": None,
+        "social_pulse":    "social-pulse-el-mirage.csv",
+    },
 }
 
 PLOTLY_LAYOUT = dict(
@@ -95,7 +100,7 @@ PLOTLY_LAYOUT = dict(
 # ============================================================
 @st.cache_data
 def load_csv(filename):
-    if filename is None or not os.path.exists(filename):
+    if not filename or not os.path.exists(filename):
         return None
     df = pd.read_csv(filename)
     if "Date" in df.columns:
@@ -104,13 +109,21 @@ def load_csv(filename):
 
 def load_business(biz):
     files = BUSINESSES[biz]
-    return {
-        "foot_traffic":    load_csv(files.get("foot_traffic")),
-        "repeat_visits":   load_csv(files.get("repeat_visits")),
-        "dwell_time":      load_csv(files.get("dwell_time")),
-        "redemption_rate": load_csv(files.get("redemption_rate")),
-        "social_pulse":    load_csv(files.get("social_pulse")),
-    }
+    return {k: load_csv(v) for k, v in files.items() if k != "color"}
+
+def filter_df(df, start, end):
+    if df is None or "Date" not in df.columns:
+        return df
+    return df[(df["Date"] >= pd.Timestamp(start)) & (df["Date"] <= pd.Timestamp(end))]
+
+def get_date_range(data):
+    dates = []
+    for df in data.values():
+        if df is not None and "Date" in df.columns:
+            dates.extend(df["Date"].dropna().tolist())
+    if not dates:
+        return None, None
+    return min(dates).date(), max(dates).date()
 
 def metric_card(label, value, sub=None):
     sub_html = f'<div class="metric-sub">{sub}</div>' if sub else ""
@@ -121,6 +134,48 @@ def metric_card(label, value, sub=None):
         {sub_html}
     </div>""", unsafe_allow_html=True)
 
+def line_chart(df, col, color, title, ytitle, fill_color):
+    if df is None or df.empty:
+        st.info(f"No {title} data for selected range.")
+        return
+    avg = df[col].mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df["Date"], y=df[col],
+        mode="lines+markers", name=title,
+        line=dict(color=color, width=2), marker=dict(size=5),
+        fill="tozeroy", fillcolor=fill_color,
+    ))
+    fig.add_hline(y=avg, line_dash="dash", line_color="#6b7db3",
+                  annotation_text=f"Avg: {avg:.1f}")
+    fig.update_layout(title=title, yaxis_title=ytitle, **PLOTLY_LAYOUT)
+    st.plotly_chart(fig, use_container_width=True)
+
+def bar_chart(df, col, color, title, ytitle):
+    if df is None or df.empty:
+        st.info(f"No {title} data for selected range.")
+        return
+    fig = go.Figure(go.Bar(
+        x=df["Date"], y=df[col],
+        marker_color=color, opacity=0.85,
+    ))
+    fig.update_layout(title=title, yaxis_title=ytitle, **PLOTLY_LAYOUT)
+    st.plotly_chart(fig, use_container_width=True)
+
+def dow_chart(df, col, color, title):
+    if df is None or df.empty:
+        return
+    day_order = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+    d = df.copy()
+    d["day"] = d["Date"].dt.day_name()
+    dow = d.groupby("day")[col].mean().reindex(day_order).reset_index()
+    fig = go.Figure(go.Bar(
+        x=dow["day"], y=dow[col].round(1),
+        marker_color=color, opacity=0.85,
+    ))
+    fig.update_layout(title=title, **PLOTLY_LAYOUT)
+    st.plotly_chart(fig, use_container_width=True)
+
 # ============================================================
 #  SIDEBAR
 # ============================================================
@@ -129,32 +184,87 @@ with st.sidebar:
     st.markdown("**Capstone Analytics Dashboard**")
     st.markdown("*CIS 450 — ASU*")
     st.markdown("---")
-    selected_biz = st.selectbox("Select Business", list(BUSINESSES.keys()))
-    st.markdown("---")
-    st.caption("Pilot data: Mar 14 – Apr 12, 2026")
-    st.caption("Social data: Apr 7, 2026")
-    st.markdown("---")
-    st.caption("More businesses will appear in this dropdown once their CSV files are added to the repo.")
 
-color = BUSINESSES[selected_biz]["color"]
-data  = load_business(selected_biz)
+    # Business selector
+    selected_biz = st.selectbox("Select Business", list(BUSINESSES.keys()))
+    color = BUSINESSES[selected_biz]["color"]
+    data  = load_business(selected_biz)
+
+    st.markdown("---")
+
+    # Date range filter
+    st.markdown("### 📅 Date Range Filter")
+    min_date, max_date = get_date_range(data)
+
+    if min_date and max_date:
+        date_range = st.date_input(
+            "Select date range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+            label_visibility="collapsed",
+        )
+        if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+            start_date, end_date = date_range
+        else:
+            start_date, end_date = min_date, max_date
+
+        # Quick presets
+        st.markdown("**Quick select:**")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("7 days",  use_container_width=True):
+                start_date = max_date - timedelta(days=6)
+                end_date   = max_date
+            if st.button("30 days", use_container_width=True):
+                start_date = max_date - timedelta(days=29)
+                end_date   = max_date
+        with c2:
+            if st.button("14 days", use_container_width=True):
+                start_date = max_date - timedelta(days=13)
+                end_date   = max_date
+            if st.button("All data", use_container_width=True):
+                start_date = min_date
+                end_date   = max_date
+
+        days_selected = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days + 1
+        st.markdown(f"""
+        <div class="filter-note">
+            <strong style="color:#a78bfa">{days_selected} days selected</strong><br>
+            {start_date.strftime("%b %d")} → {end_date.strftime("%b %d, %Y")}
+        </div>""", unsafe_allow_html=True)
+    else:
+        start_date, end_date, days_selected = None, None, 0
+        st.warning("No date data found.")
+
+    st.markdown("---")
+    st.caption("Pilot data: Mar 19 – Apr 17, 2026")
+    st.caption("Social data: Feb 10 – Apr 7, 2026")
+
+# ============================================================
+#  APPLY DATE FILTER
+# ============================================================
+f = {k: filter_df(df, start_date, end_date) for k, df in data.items()}
 
 # ============================================================
 #  HEADER
 # ============================================================
+biz_colors = {"NOLA Boards":"#7c3aed","Lower Coast Coffee":"#1d9e75",
+              "AZ Chimney Cakes":"#e07b39","City of El Mirage":"#3b82f6"}
 st.markdown(f"# 📊 {selected_biz} — Analytics Dashboard")
+if start_date and end_date:
+    st.markdown(f"Showing **{start_date.strftime('%b %d')} → {end_date.strftime('%b %d, %Y')}** &nbsp;·&nbsp; {days_selected} days")
 st.markdown("---")
 
 # ============================================================
 #  SECTION 1 — KPI CARDS
 # ============================================================
 st.markdown('<div class="section-header">Key Performance Indicators</div>', unsafe_allow_html=True)
-
 k1, k2, k3, k4 = st.columns(4)
 
 with k1:
-    df = data["foot_traffic"]
-    if df is not None:
+    df = f["foot_traffic"]
+    if df is not None and not df.empty:
         metric_card("Avg Daily Foot Traffic",
                     round(df["foot Traffic"].mean(), 1),
                     f"Peak: {round(df['foot Traffic'].max(), 1)}")
@@ -162,8 +272,8 @@ with k1:
         metric_card("Avg Daily Foot Traffic", "N/A")
 
 with k2:
-    df = data["repeat_visits"]
-    if df is not None:
+    df = f["repeat_visits"]
+    if df is not None and not df.empty:
         metric_card("Avg Repeat Visits",
                     round(df["repeat Visits"].mean(), 1),
                     f"Peak: {round(df['repeat Visits'].max(), 1)}")
@@ -171,180 +281,193 @@ with k2:
         metric_card("Avg Repeat Visits", "N/A")
 
 with k3:
-    df = data["dwell_time"]
-    if df is not None:
+    df = f["dwell_time"]
+    if df is not None and not df.empty:
         metric_card("Avg Dwell Time (min)",
-                    round(df["dwell Time"].mean(), 1))
+                    round(df["dwell Time"].mean(), 1),
+                    f"Peak: {round(df['dwell Time'].max(), 1)} min")
     else:
         metric_card("Avg Dwell Time", "N/A")
 
 with k4:
-    df = data["redemption_rate"]
-    if df is not None:
+    df = f["redemption_rate"]
+    if df is not None and not df.empty:
         metric_card("Avg Redemption Rate (%)",
                     round(df["redemption Rate"].mean(), 1),
                     f"Peak: {round(df['redemption Rate'].max(), 1)}%")
     else:
-        metric_card("Avg Redemption Rate", "N/A")
+        metric_card("Avg Redemption Rate", "N/A — not available")
 
 # ============================================================
 #  SECTION 2 — SOCIAL PULSE
 # ============================================================
-st.markdown('<div class="section-header">Social Pulse — Google · Yelp · Instagram</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-header">Social Pulse — Google · Yelp · Instagram · TikTok</div>', unsafe_allow_html=True)
 
-df_social = data["social_pulse"]
+df_social = data["social_pulse"]  # social is snapshot — not date-filtered
 if df_social is not None:
-    s1, s2, s3, s4 = st.columns(4)
-    google = df_social[df_social["Platform"] == "google"]
-    yelp   = df_social[df_social["Platform"] == "yelp"]
-    insta  = df_social[df_social["Platform"] == "instagram"]
+    # Get latest entry per platform
+    latest = df_social.sort_values("Date").groupby("Platform").last().reset_index()
+    google = latest[latest["Platform"] == "google"]
+    yelp   = latest[latest["Platform"] == "yelp"]
+    insta  = latest[latest["Platform"] == "instagram"]
+    tiktok = latest[latest["Platform"] == "tiktok"]
 
+    s1, s2, s3, s4 = st.columns(4)
     with s1:
-        if not google.empty:
-            reviews = int(google["Review Count"].iloc[-1]) if pd.notna(google["Review Count"].iloc[-1]) else "—"
-            metric_card("Google Rating", f"⭐ {google['Rating'].iloc[-1]}", f"{reviews} reviews")
+        if not google.empty and pd.notna(google["Rating"].iloc[0]):
+            reviews = int(google["Review Count"].iloc[0]) if pd.notna(google["Review Count"].iloc[0]) else "—"
+            metric_card("Google Rating", f"⭐ {google['Rating'].iloc[0]}", f"{reviews} reviews")
     with s2:
-        if not yelp.empty:
-            reviews = int(yelp["Review Count"].iloc[-1]) if pd.notna(yelp["Review Count"].iloc[-1]) else "—"
-            metric_card("Yelp Rating", f"⭐ {yelp['Rating'].iloc[-1]}", f"{reviews} reviews")
+        if not yelp.empty and pd.notna(yelp["Rating"].iloc[0]):
+            reviews = int(yelp["Review Count"].iloc[0]) if pd.notna(yelp["Review Count"].iloc[0]) else "—"
+            metric_card("Yelp Rating", f"⭐ {yelp['Rating'].iloc[0]}", f"{reviews} reviews")
     with s3:
-        if not insta.empty:
-            followers = int(insta["Follower Count"].iloc[-1]) if pd.notna(insta["Follower Count"].iloc[-1]) else "—"
-            metric_card("Instagram Followers", f"{followers:,}" if isinstance(followers, int) else followers)
+        if not insta.empty and pd.notna(insta["Follower Count"].iloc[0]):
+            metric_card("Instagram Followers",
+                        f"{int(insta['Follower Count'].iloc[0]):,}",
+                        f"{int(insta['Post Count'].iloc[0])} posts" if pd.notna(insta["Post Count"].iloc[0]) else "")
     with s4:
-        metric_card("Last Refreshed", "Apr 7, 2026")
+        if not tiktok.empty and pd.notna(tiktok["Follower Count"].iloc[0]):
+            metric_card("TikTok Followers",
+                        f"{int(tiktok['Follower Count'].iloc[0]):,}",
+                        f"{int(tiktok['Post Count'].iloc[0])} posts" if pd.notna(tiktok["Post Count"].iloc[0]) else "")
+
+    # Social growth chart
+    st.markdown("##### Follower Growth Over Time")
+    fig_social = go.Figure()
+    for platform, clr in [("instagram", "#e1306c"), ("tiktok", "#69c9d0")]:
+        pf = df_social[df_social["Platform"] == platform].sort_values("Date")
+        if not pf.empty and pf["Follower Count"].notna().any():
+            fig_social.add_trace(go.Scatter(
+                x=pf["Date"], y=pf["Follower Count"],
+                mode="lines+markers", name=platform.title(),
+                line=dict(color=clr, width=2), marker=dict(size=5),
+            ))
+    fig_social.update_layout(title="Instagram & TikTok Follower Growth", **PLOTLY_LAYOUT)
+    st.plotly_chart(fig_social, use_container_width=True)
 else:
     st.info("No social pulse data available for this business.")
 
 # ============================================================
 #  SECTION 3 — FOOT TRAFFIC & REDEMPTION RATE
 # ============================================================
-st.markdown('<div class="section-header">Foot Traffic & Redemption Rate — 30 Day Trend</div>', unsafe_allow_html=True)
-
+st.markdown('<div class="section-header">Foot Traffic & Redemption Rate — Trend</div>', unsafe_allow_html=True)
 col_l, col_r = st.columns(2)
-
 with col_l:
-    df = data["foot_traffic"]
-    if df is not None:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df["Date"], y=df["foot Traffic"],
-            mode="lines+markers", name="Foot Traffic",
-            line=dict(color=color, width=2), marker=dict(size=5),
-            fill="tozeroy", fillcolor="rgba(124,58,237,0.08)",
-        ))
-        fig.add_hline(y=df["foot Traffic"].mean(), line_dash="dash",
-                      line_color="#6b7db3",
-                      annotation_text=f"Avg: {df['foot Traffic'].mean():.1f}")
-        fig.update_layout(title="Daily Foot Traffic", yaxis_title="Score", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig, use_container_width=True)
-
+    line_chart(f["foot_traffic"], "foot Traffic", color,
+               "Daily Foot Traffic", "Score", "rgba(124,58,237,0.08)")
 with col_r:
-    df = data["redemption_rate"]
-    if df is not None:
-        fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(
-            x=df["Date"], y=df["redemption Rate"],
-            mode="lines+markers", name="Redemption Rate",
-            line=dict(color="#1d9e75", width=2), marker=dict(size=5),
-            fill="tozeroy", fillcolor="rgba(29,158,117,0.08)",
-        ))
-        fig2.add_hline(y=df["redemption Rate"].mean(), line_dash="dash",
-                       line_color="#6b7db3",
-                       annotation_text=f"Avg: {df['redemption Rate'].mean():.1f}%")
-        fig2.update_layout(title="Daily Redemption Rate (%)", yaxis_title="%", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig2, use_container_width=True)
+    line_chart(f["redemption_rate"], "redemption Rate", "#1d9e75",
+               "Daily Redemption Rate (%)", "%", "rgba(29,158,117,0.08)")
 
 # ============================================================
 #  SECTION 4 — REPEAT VISITS & DWELL TIME
 # ============================================================
 st.markdown('<div class="section-header">Repeat Visits & Dwell Time</div>', unsafe_allow_html=True)
-
 col_a, col_b = st.columns(2)
-
 with col_a:
-    df = data["repeat_visits"]
-    if df is not None:
-        fig3 = go.Figure(go.Bar(
-            x=df["Date"], y=df["repeat Visits"],
-            marker_color=color, opacity=0.85, name="Repeat Visits",
-        ))
-        fig3.update_layout(title="Daily Repeat Visits", yaxis_title="Visits", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig3, use_container_width=True)
-
+    bar_chart(f["repeat_visits"], "repeat Visits", color,
+              "Daily Repeat Visits", "Visits")
 with col_b:
-    df = data["dwell_time"]
-    if df is not None:
-        fig4 = go.Figure(go.Scatter(
-            x=df["Date"], y=df["dwell Time"],
-            mode="lines+markers", name="Dwell Time",
-            line=dict(color="#e07b39", width=2), marker=dict(size=5),
-        ))
-        fig4.add_hline(y=df["dwell Time"].mean(), line_dash="dash",
-                       line_color="#6b7db3",
-                       annotation_text=f"Avg: {df['dwell Time'].mean():.1f} min")
-        fig4.update_layout(title="Daily Dwell Time (minutes)", yaxis_title="Minutes", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig4, use_container_width=True)
+    line_chart(f["dwell_time"], "dwell Time", "#e07b39",
+               "Daily Dwell Time (minutes)", "Minutes", "rgba(224,123,57,0.08)")
 
 # ============================================================
 #  SECTION 5 — ALL METRICS COMBINED
 # ============================================================
-st.markdown('<div class="section-header">All Metrics Combined — Full Overview</div>', unsafe_allow_html=True)
-
-fig5 = go.Figure()
-all_metrics = [
-    (data["foot_traffic"],    "foot Traffic",    color,     "Foot Traffic"),
-    (data["repeat_visits"],   "repeat Visits",   "#1d9e75", "Repeat Visits"),
-    (data["dwell_time"],      "dwell Time",      "#e07b39", "Dwell Time (min)"),
-    (data["redemption_rate"], "redemption Rate", "#3b82f6", "Redemption Rate (%)"),
+st.markdown('<div class="section-header">All Pilot Metrics Combined</div>', unsafe_allow_html=True)
+fig_all = go.Figure()
+combos = [
+    (f["foot_traffic"],    "foot Traffic",    color,     "Foot Traffic"),
+    (f["repeat_visits"],   "repeat Visits",   "#1d9e75", "Repeat Visits"),
+    (f["dwell_time"],      "dwell Time",      "#e07b39", "Dwell Time (min)"),
+    (f["redemption_rate"], "redemption Rate", "#3b82f6", "Redemption Rate (%)"),
 ]
-for df, col_name, clr, label in all_metrics:
-    if df is not None:
-        fig5.add_trace(go.Scatter(
+for df, col_name, clr, label in combos:
+    if df is not None and not df.empty:
+        fig_all.add_trace(go.Scatter(
             x=df["Date"], y=df[col_name],
             mode="lines", name=label,
             line=dict(color=clr, width=2),
         ))
-fig5.update_layout(
+fig_all.update_layout(
     title=f"{selected_biz} — All Metrics Over Time",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     **PLOTLY_LAYOUT,
 )
-st.plotly_chart(fig5, use_container_width=True)
+st.plotly_chart(fig_all, use_container_width=True)
 
 # ============================================================
 #  SECTION 6 — DAY OF WEEK PATTERNS
 # ============================================================
-st.markdown('<div class="section-header">Day of Week Patterns</div>', unsafe_allow_html=True)
-
-day_order = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+st.markdown('<div class="section-header">Day of Week Patterns — Selected Period</div>', unsafe_allow_html=True)
 col_d1, col_d2 = st.columns(2)
-
 with col_d1:
-    df = data["foot_traffic"]
-    if df is not None:
-        df = df.copy()
-        df["day"] = df["Date"].dt.day_name()
-        dow = df.groupby("day")["foot Traffic"].mean().reindex(day_order).reset_index()
-        fig6 = go.Figure(go.Bar(
-            x=dow["day"], y=dow["foot Traffic"].round(1),
-            marker_color=color, opacity=0.85,
-        ))
-        fig6.update_layout(title="Avg Foot Traffic by Day of Week", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig6, use_container_width=True)
-
+    dow_chart(f["foot_traffic"], "foot Traffic", color, "Avg Foot Traffic by Day of Week")
 with col_d2:
-    df = data["redemption_rate"]
-    if df is not None:
-        df = df.copy()
-        df["day"] = df["Date"].dt.day_name()
-        dow = df.groupby("day")["redemption Rate"].mean().reindex(day_order).reset_index()
-        fig7 = go.Figure(go.Bar(
-            x=dow["day"], y=dow["redemption Rate"].round(1),
-            marker_color="#1d9e75", opacity=0.85,
-        ))
-        fig7.update_layout(title="Avg Redemption Rate by Day of Week", **PLOTLY_LAYOUT)
-        st.plotly_chart(fig7, use_container_width=True)
+    dow_chart(f["redemption_rate"], "redemption Rate", "#1d9e75", "Avg Redemption Rate by Day of Week")
+
+col_d3, col_d4 = st.columns(2)
+with col_d3:
+    dow_chart(f["repeat_visits"], "repeat Visits", "#e07b39", "Avg Repeat Visits by Day of Week")
+with col_d4:
+    dow_chart(f["dwell_time"], "dwell Time", "#3b82f6", "Avg Dwell Time by Day of Week")
+
+# ============================================================
+#  SECTION 7 — CROSS-BUSINESS COMPARISON
+# ============================================================
+st.markdown('<div class="section-header">Cross-Business Comparison</div>', unsafe_allow_html=True)
+st.caption("Comparing averages across all 4 businesses for the selected date range.")
+
+biz_names, ft_avgs, rv_avgs, dt_avgs, rr_avgs = [], [], [], [], []
+for biz in BUSINESSES:
+    biz_data = load_business(biz)
+    biz_filtered = {k: filter_df(df, start_date, end_date) for k, df in biz_data.items()}
+    biz_names.append(biz)
+    ft_avgs.append(round(biz_filtered["foot_traffic"]["foot Traffic"].mean(), 1)
+                   if biz_filtered["foot_traffic"] is not None and not biz_filtered["foot_traffic"].empty else 0)
+    rv_avgs.append(round(biz_filtered["repeat_visits"]["repeat Visits"].mean(), 1)
+                   if biz_filtered["repeat_visits"] is not None and not biz_filtered["repeat_visits"].empty else 0)
+    dt_avgs.append(round(biz_filtered["dwell_time"]["dwell Time"].mean(), 1)
+                   if biz_filtered["dwell_time"] is not None and not biz_filtered["dwell_time"].empty else 0)
+    rr_avgs.append(round(biz_filtered["redemption_rate"]["redemption Rate"].mean(), 1)
+                   if biz_filtered["redemption_rate"] is not None and not biz_filtered["redemption_rate"].empty else 0)
+
+comp_colors = [biz_colors[b] for b in biz_names]
+
+cc1, cc2 = st.columns(2)
+with cc1:
+    fig_c1 = go.Figure(go.Bar(
+        x=biz_names, y=ft_avgs,
+        marker_color=comp_colors, opacity=0.85,
+    ))
+    fig_c1.update_layout(title="Avg Foot Traffic — All Businesses", **PLOTLY_LAYOUT)
+    st.plotly_chart(fig_c1, use_container_width=True)
+
+with cc2:
+    fig_c2 = go.Figure(go.Bar(
+        x=biz_names, y=rr_avgs,
+        marker_color=comp_colors, opacity=0.85,
+    ))
+    fig_c2.update_layout(title="Avg Redemption Rate — All Businesses", **PLOTLY_LAYOUT)
+    st.plotly_chart(fig_c2, use_container_width=True)
+
+cc3, cc4 = st.columns(2)
+with cc3:
+    fig_c3 = go.Figure(go.Bar(
+        x=biz_names, y=rv_avgs,
+        marker_color=comp_colors, opacity=0.85,
+    ))
+    fig_c3.update_layout(title="Avg Repeat Visits — All Businesses", **PLOTLY_LAYOUT)
+    st.plotly_chart(fig_c3, use_container_width=True)
+
+with cc4:
+    fig_c4 = go.Figure(go.Bar(
+        x=biz_names, y=dt_avgs,
+        marker_color=comp_colors, opacity=0.85,
+    ))
+    fig_c4.update_layout(title="Avg Dwell Time — All Businesses", **PLOTLY_LAYOUT)
+    st.plotly_chart(fig_c4, use_container_width=True)
 
 # ============================================================
 #  FOOTER
