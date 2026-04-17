@@ -66,7 +66,7 @@ BUSINESSES = {
         "foot_traffic":    "pilot-nola-footTraffic-2026-04-17.csv",
         "repeat_visits":   "pilot-nola-repeatVisits-2026-04-17.csv",
         "dwell_time":      "pilot-nola-dwellTime-2026-04-17.csv",
-        "redemption_rate": "pilot-nola-redemptionRate-2026-04-12.csv",
+        "redemption_rate": "pilot-nola-redemptionRate-2026-04-17 (1).csv",
         "social_pulse":    "social-pulse-nola-boards (2).csv",
     },
     "Lower Coast Coffee": {
@@ -90,7 +90,7 @@ BUSINESSES = {
         "foot_traffic":    "pilot-elmirage-footTraffic-2026-04-17.csv",
         "repeat_visits":   "pilot-elmirage-repeatVisits-2026-04-17.csv",
         "dwell_time":      "pilot-elmirage-dwellTime-2026-04-17.csv",
-        "redemption_rate": None,
+        "redemption_rate": "pilot-elmirage-redemptionRate-2026-04-17.csv",
         "social_pulse":    "social-pulse-el-mirage (1).csv",
     },
 }
