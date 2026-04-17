@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, timedelta
 import os
+import glob
 
 st.set_page_config(
     page_title="WayLucid Capstone Dashboard",
@@ -34,19 +35,24 @@ st.markdown("""
         border-radius: 8px; padding: 8px 12px;
         font-size: 11px; color: #7b7baa; margin-bottom: 8px;
     }
-    div[data-testid="metric-container"] {
-        background: #161628; border: 0.5px solid #2a2a4a;
-        border-radius: 12px; padding: 12px 16px;
-    }
-    div[data-testid="metric-container"] label { color: #6b7db3 !important; }
-    div[data-testid="metric-container"] div { color: #e0e0f0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-#  PILOT DATE RANGE — common across all businesses
-#  Mar 19 is the first date all 4 businesses have data
-#  Apr 17 is the latest download date
+#  DEBUG — show all files Streamlit can see
+# ============================================================
+with st.expander("🔍 Debug: Files visible to Streamlit (click to expand)"):
+    all_files = sorted(glob.glob("*.csv") + glob.glob("**/*.csv"))
+    if all_files:
+        st.write("**CSV files found:**")
+        for f in all_files:
+            st.code(f)
+    else:
+        st.error("No CSV files found at all! Files are not in the right location.")
+    st.write(f"**Working directory:** `{os.getcwd()}`")
+
+# ============================================================
+#  PILOT DATE RANGE
 # ============================================================
 PILOT_MIN = date(2026, 3, 19)
 PILOT_MAX = date(2026, 4, 17)
@@ -106,9 +112,17 @@ PLOTLY_LAYOUT = dict(
 # ============================================================
 @st.cache_data
 def load_csv(filename):
-    if not filename or not os.path.exists(filename):
+    if not filename:
         return None
-    df = pd.read_csv(filename)
+    # Try exact filename first, then search for it
+    if os.path.exists(filename):
+        df = pd.read_csv(filename)
+    else:
+        # Search for file with similar name (handles encoding issues)
+        matches = glob.glob(f"*{filename.split('-')[1]}*{filename.split('.')[-2].split('-')[-1]}*.csv")
+        if not matches:
+            return None
+        df = pd.read_csv(matches[0])
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     return df
@@ -260,8 +274,7 @@ with k1:
                     round(df["foot Traffic"].mean(), 1),
                     f"Peak: {round(df['foot Traffic'].max(), 1)}")
     else:
-        metric_card("Avg Daily Foot Traffic", "N/A",
-                    "File missing from GitHub")
+        metric_card("Avg Daily Foot Traffic", "N/A", "File missing from GitHub")
 
 with k2:
     df = f["repeat_visits"]
@@ -270,8 +283,7 @@ with k2:
                     round(df["repeat Visits"].mean(), 1),
                     f"Peak: {round(df['repeat Visits'].max(), 1)}")
     else:
-        metric_card("Avg Repeat Visits", "N/A",
-                    "File missing from GitHub")
+        metric_card("Avg Repeat Visits", "N/A", "File missing from GitHub")
 
 with k3:
     df = f["dwell_time"]
@@ -280,8 +292,7 @@ with k3:
                     round(df["dwell Time"].mean(), 1),
                     f"Peak: {round(df['dwell Time'].max(), 1)} min")
     else:
-        metric_card("Avg Dwell Time", "N/A",
-                    "File missing from GitHub")
+        metric_card("Avg Dwell Time", "N/A", "File missing from GitHub")
 
 with k4:
     df = f["redemption_rate"]
@@ -346,8 +357,8 @@ if df_social is not None and not df_social.empty:
                 mode="lines+markers", name=platform.title(),
                 line=dict(color=clr, width=2), marker=dict(size=5),
             ))
-    fig_s.update_layout(
-        title="Instagram & TikTok Follower Growth", **PLOTLY_LAYOUT)
+    fig_s.update_layout(title="Instagram & TikTok Follower Growth",
+                        **PLOTLY_LAYOUT)
     st.plotly_chart(fig_s, use_container_width=True)
 else:
     st.info("No social pulse data available for this business.")
@@ -434,29 +445,20 @@ st.markdown(
     unsafe_allow_html=True)
 st.caption("Averages across all businesses for the selected date range.")
 
-biz_names = []
-ft_avgs   = []
-rv_avgs   = []
-dt_avgs   = []
-rr_avgs   = []
-
+biz_names, ft_avgs, rv_avgs, dt_avgs, rr_avgs = [], [], [], [], []
 for biz in BUSINESSES:
     bd = load_business(biz)
     bf = {k: filter_df(df, start_date, end_date) for k, df in bd.items()}
     biz_names.append(biz)
-
     ft = bf.get("foot_traffic")
     ft_avgs.append(round(ft["foot Traffic"].mean(), 1)
                    if ft is not None and not ft.empty else 0)
-
     rv = bf.get("repeat_visits")
     rv_avgs.append(round(rv["repeat Visits"].mean(), 1)
                    if rv is not None and not rv.empty else 0)
-
     dt = bf.get("dwell_time")
     dt_avgs.append(round(dt["dwell Time"].mean(), 1)
                    if dt is not None and not dt.empty else 0)
-
     rr = bf.get("redemption_rate")
     rr_avgs.append(round(rr["redemption Rate"].mean(), 1)
                    if rr is not None and not rr.empty else 0)
@@ -465,40 +467,34 @@ comp_colors = [BIZ_COLORS[b] for b in biz_names]
 
 cc1, cc2 = st.columns(2)
 with cc1:
-    fig_c1 = go.Figure(go.Bar(
-        x=biz_names, y=ft_avgs,
-        marker_color=comp_colors, opacity=0.85))
-    fig_c1.update_layout(
-        title="Avg Foot Traffic — All Businesses", **PLOTLY_LAYOUT)
+    fig_c1 = go.Figure(go.Bar(x=biz_names, y=ft_avgs,
+                               marker_color=comp_colors, opacity=0.85))
+    fig_c1.update_layout(title="Avg Foot Traffic — All Businesses",
+                         **PLOTLY_LAYOUT)
     st.plotly_chart(fig_c1, use_container_width=True)
 with cc2:
-    fig_c2 = go.Figure(go.Bar(
-        x=biz_names, y=rr_avgs,
-        marker_color=comp_colors, opacity=0.85))
-    fig_c2.update_layout(
-        title="Avg Redemption Rate — All Businesses", **PLOTLY_LAYOUT)
+    fig_c2 = go.Figure(go.Bar(x=biz_names, y=rr_avgs,
+                               marker_color=comp_colors, opacity=0.85))
+    fig_c2.update_layout(title="Avg Redemption Rate — All Businesses",
+                         **PLOTLY_LAYOUT)
     st.plotly_chart(fig_c2, use_container_width=True)
 
 cc3, cc4 = st.columns(2)
 with cc3:
-    fig_c3 = go.Figure(go.Bar(
-        x=biz_names, y=rv_avgs,
-        marker_color=comp_colors, opacity=0.85))
-    fig_c3.update_layout(
-        title="Avg Repeat Visits — All Businesses", **PLOTLY_LAYOUT)
+    fig_c3 = go.Figure(go.Bar(x=biz_names, y=rv_avgs,
+                               marker_color=comp_colors, opacity=0.85))
+    fig_c3.update_layout(title="Avg Repeat Visits — All Businesses",
+                         **PLOTLY_LAYOUT)
     st.plotly_chart(fig_c3, use_container_width=True)
 with cc4:
-    fig_c4 = go.Figure(go.Bar(
-        x=biz_names, y=dt_avgs,
-        marker_color=comp_colors, opacity=0.85))
-    fig_c4.update_layout(
-        title="Avg Dwell Time — All Businesses", **PLOTLY_LAYOUT)
+    fig_c4 = go.Figure(go.Bar(x=biz_names, y=dt_avgs,
+                               marker_color=comp_colors, opacity=0.85))
+    fig_c4.update_layout(title="Avg Dwell Time — All Businesses",
+                         **PLOTLY_LAYOUT)
     st.plotly_chart(fig_c4, use_container_width=True)
 
 # ============================================================
 #  FOOTER
 # ============================================================
 st.markdown("---")
-st.caption(
-    "WayLucid Capstone Dashboard · CIS 450 Data Analytics · "
-    "ASU · Built with Streamlit")
+st.caption("WayLucid Capstone Dashboard · CIS 450 Data Analytics · ASU · Built with Streamlit")
